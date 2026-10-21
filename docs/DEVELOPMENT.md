@@ -1,4 +1,41 @@
-# Hollow Universe AB Test B
+# Hollow Universe — development
+
+The entries before "AB Test B merged" are AB Test B's (`D:\GameDev\Projects\HollowUniverseABTestB`, branch `abtest-b`,
+15 to 21 October 2026). Hollow Universe's own earlier record is `docs/progress-ground.md` and `docs/handoff-ground.md`.
+
+## 21 October 2026 — AB Test B merged; the ground game goes on in Hollow Island
+
+The owner split the work in two (AGENTS.md, "The split of 21 October 2026"):
+- this repository keeps the space game;
+- Hollow Island (`D:\GameDev\Projects\HollowIsland`), cloned from the same commit, is the ground game alone, on a flat
+  map.
+
+- **The merge (80e4c382):**
+  - AB Test B's `abtest-b` at the tag `split-point` came in whole, and the tree is `abtest-b`'s exactly.
+  - Hollow Universe's own 32f79c61 is superseded. It had installed the salvage and loot-container packages a second
+    way, so its copies are dropped (the merge's message lists them).
+  - The branch `fix/herd-seeds-and-impostor-bounds` is covered:
+    - the herd-seed fix was already in `abtest-b`;
+    - the impostor bounds fix came in as 04cdfe77.
+- **Before the split, on `abtest-b`:**
+  - The sessions' uncommitted vehicle and field-of-view work was committed.
+  - The door sight fix was brought over.
+  - The terrain sessions' uncommitted work was kept on `abtest-b-archive/terrain-beds-wip`, with three more
+    `abtest-b-archive/*` branches. AGENTS.md lists them.
+- **This repository's own:**
+  - Saves go back to Godot's default `app_userdata/Hollow Universe`, since `project.godot` names no custom folder.
+  - The terrain bake cache goes to `%LOCALAPPDATA%\HollowUniverse\bakes`.
+  - `AGENTS.md`'s top section is new. It says planet scale is under review, because the owner intends to go back to
+    proper-sized planets.
+- **Checked here, after the merge:**
+  - the solution builds with no warnings;
+  - AB Test B's Godot import cache is copied in with the files' times matched, and Godot's headless import found
+    nothing to reimport (5 s);
+  - the full suite passed 1,119 of 1,129, as on `abtest-b` at `split-point`. The ten failures are Earth terrain, cliff
+    and geology tests failing since 6a1199c1 (20 October):
+    - Earth's golden hash, layout 6 against 5, the formations, the environment route;
+    - `ArchitectureTests`: `Math.Cos` in `CliffKitPlacements`, `Stopwatch` in `TerrainBake`.
+  - Not tried: a hosted game here. Hollow Island's identical one ran.
 
 ## 21 October 2026 — Vehicles: the bay where it is painted, drawn into it, and INSPECT VEHICLE (VEHICLES.md §9.11)
 

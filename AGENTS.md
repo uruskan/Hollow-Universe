@@ -1,28 +1,66 @@
-# Hollow Universe AB Test B — active project instructions
+# Hollow Universe — active project instructions
 
-This independent project lives in `D:\GameDev\Projects\HollowUniverseABTestB` on branch `abtest-b`.
-The user approved Godot 4.7.2 .NET and C# on 15 October 2026. The original repository at
-`D:\GameDev\Projects\Hollow Universe` is a reusable source/reference, not this project's working directory.
-Do not edit or merge into it as part of this project. This repository has no push remote.
+This repository, `D:\GameDev\Projects\Hollow Universe`, is the space game. Its branch is `main`, and its remote,
+`origin`, is on GitHub: sessions commit and the owner pushes from GitHub Desktop. The game uses Godot 4.7.2 .NET and C#.
+
+## The split of 21 October 2026
+
+On 21 October 2026 the owner split the work in two:
+
+- **Hollow Universe** (this repository) is the space game: the galaxy, travel between stars, round planets and the
+  ground game on them. At the split it took all of AB Test B's work in one merge: the `abtest-b` branch of
+  `D:\GameDev\Projects\HollowUniverseABTestB`, 15 to 21 October 2026, tag `split-point`. AB Test B's repository is retired.
+  The work its sessions left unfinished is kept on these branches:
+  - `abtest-b-archive/terrain-beds-wip`: the reference hill's beds, Earth at Rust's heights, soft pads. It doesn't pass
+    the tests.
+  - `abtest-b-archive/texture-options-ground` and `abtest-b-archive/texture-options-models`: texture memory options
+    waiting for the owner's choice.
+  - `abtest-b-archive/texture-census-wip`: a temporary measurement aid.
+- **Hollow Island** (`D:\GameDev\Projects\HollowIsland`) is the ground survival game alone, on a flat map, with no planet
+  or space. From now on the ground game's systems are developed there: items, crafting, building, combat, vehicles,
+  animals, the network, the interface, sound and effects. The two repositories share their history up to `split-point`.
+  When the space game wants Island's work, fetch it from Island's repository and merge or cherry-pick it. Don't copy
+  files by hand.
+
+Don't edit Hollow Island from this repository's sessions, or this one from Island's, without the owner's word.
 
 ## Authoritative design and precedence
 
-Read `docs/DESIGN.md`, copied from the user's `D:\GameDev\Projects\x\design.md`, as the current design.
-It supersedes the historical design, lore, scale, travel, faction, and workflow statements below and in inherited docs.
-Keep confirmed requirements distinct from proposals. Current requirements include a maximum of 1,000 stars,
-planets with at most 23.04 km² total surface area, initial spawn on Earth with one rock and one torch,
-Elite Dangerous-inspired normal flight, supercruise, charged interstellar jumps and fuel scooping,
-and preservation of the ground UI. The travel revision of 18 October 2026 in DESIGN.md TRAVEL-01–05
-supersedes the earlier direct-flight/no-supercruise rule; detailed tuning remains open.
-Use the standard Godot build; custom precision builds are not an assumed requirement.
+Read `docs/DESIGN.md`, copied from the owner's `D:\GameDev\Projects\x\design.md`, as the current design. It supersedes
+the historical design, lore, scale, travel, faction and workflow statements below and in inherited docs. Keep confirmed
+requirements distinct from proposals.
 
-Retain C#, engine-free simulation, deterministic generation, data-driven shared systems, build/test checks,
-and screenshots for visual changes from the engineering rules below. Existing implementation is a reusable
-foundation, not evidence that new design requirements are already complete. Record current work and honest
-validation in `docs/DEVELOPMENT.md`. Existing source docs describe inherited behavior until explicitly updated.
+Current requirements include:
+- a maximum of 1,000 stars;
+- initial spawn on Earth with one rock and one torch;
+- Elite Dangerous-inspired normal flight, supercruise, charged interstellar jumps and fuel scooping;
+- preservation of the ground UI.
 
-Separate agent ownership before parallel edits. Coordinate builds and Godot runs with the root agent.
-Local save data is isolated under `HollowUniverseABTestB`; never load the original game's saves implicitly.
+The travel revision of 18 October 2026 in DESIGN.md TRAVEL-01–05 supersedes the earlier direct-flight/no-supercruise
+rule; detailed tuning remains open. Use the standard Godot build; custom precision builds are not an assumed requirement.
+
+**Planet scale is under review (21 October 2026).** The owner intends to go back to proper-sized planets. Two things are
+no longer settled:
+- DESIGN.md's limit of about 23.04 km² of surface per planet (WORLD-01);
+- the small Earth and the 2.41 km first world built for it.
+
+Ask the owner before building on either. The new scale goes into DESIGN.md first, and then the code.
+
+Keep these engineering rules from below:
+- C#;
+- engine-free simulation;
+- deterministic generation;
+- data-driven shared systems;
+- build and test checks;
+- screenshots for visual changes.
+
+Existing implementation is a reusable foundation, not evidence that new design requirements are already complete.
+Record current work and honest validation in `docs/DEVELOPMENT.md`; its entries up to 21 October 2026 are AB Test B's.
+Existing source docs describe inherited behavior until explicitly updated.
+
+Separate agent ownership before parallel edits, and coordinate builds and Godot runs with the root agent. Local save
+data is this game's own: Godot's default `app_userdata/Hollow Universe`. Never load AB Test B's
+(`HollowUniverseABTestB`) or Hollow Island's (`HollowIsland`) saves.
 
 ---
 

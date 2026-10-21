@@ -306,7 +306,7 @@ public sealed class TerrainBake
     public static string CacheFolder =>
         Environment.GetEnvironmentVariable("HOLLOW_BAKE_DIR") is { Length: > 0 } folder
             ? folder
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HollowUniverseABTestB", "bakes");
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HollowUniverse", "bakes");
 
     /// <summary>
     /// The cache key of a world's bake: everything the bake depends on. The table's numbers for what is placed on the
